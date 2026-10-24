@@ -55,7 +55,7 @@ export const api = {
       ...data,
       id: `b${nextListing++}`,
       ownerId,
-      status: "Available",
+      status: "Pending approval",
       createdAt: new Date().toISOString(),
       color: "#E4472B",
     };
@@ -69,7 +69,16 @@ export const api = {
     const row = listings.find((x) => x.id === id);
     if (!row || (actor.role !== "admin" && row.ownerId !== actor.id))
       throw Error("You do not have permission to edit this listing.");
+    if (actor.role !== "admin" && data.status) {
+      if (!["Available", "Sold", "Hidden"].includes(data.status))
+        throw Error("Choose a valid listing status.");
+      if (["Pending approval", "Declined"].includes(row.status) && data.status !== row.status)
+        throw Error("This listing must be approved before it can become available.");
+    }
+    const contentChanged = Object.keys(data).some((key) => key !== "status");
     Object.assign(row, data);
+    if (actor.role !== "admin" && contentChanged)
+      row.status = "Pending approval";
     return structuredClone(row);
   },
 
@@ -166,6 +175,14 @@ export const api = {
       ),
     );
   },
+  async deleteInquiry(id, actor) {
+    await wait(null);
+    if (actor?.role !== "admin")
+      throw Error("You do not have permission to remove this inquiry.");
+    if (!inquiries.some((q) => q.id === id)) throw Error("Inquiry not found.");
+    inquiries = inquiries.filter((q) => q.id !== id);
+    return true;
+  },
   async adminAccount(id, action) {
     await wait(null);
     const row = accounts.find((x) => x.id === id);
@@ -188,7 +205,9 @@ export const api = {
 
     if (action === "delete")
       return this.deleteListing(id, { role: "admin", id: "admin1" });
-    row.status = action;
+    if (action === "approve") row.status = "Available";
+    else if (action === "decline") row.status = "Declined";
+    else row.status = action;
     return structuredClone(row);
   },
   async getCounts() {
@@ -198,6 +217,7 @@ export const api = {
       accounts: accounts.length,
       available: listings.filter((x) => x.status === "Available").length,
       sold: listings.filter((x) => x.status === "Sold").length,
+      pending: listings.filter((x) => x.status === "Pending approval").length,
     };
   },
 };

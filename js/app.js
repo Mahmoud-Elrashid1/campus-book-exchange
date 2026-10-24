@@ -64,7 +64,7 @@ const icon = (name) =>
 // Shared page frame and navigation.
 function header() {
   const u = current();
-  return `<header class="site-head"><a class="brand" href="${url("")}" aria-label="Campus Book Exchange home"><span class="bookmark">${icon("bookmark")}</span><span>Campus Book<br><b>Exchange</b></span></a><form class="header-search" id="quick-search"><label class="sr-only" for="q-head">Search books</label>${icon("search")}<input id="q-head" name="q" placeholder="Find a book, author, ISBN…"><button aria-label="Search">↵</button></form><button class="mobile-search" id="mobile-search" aria-label="Open search">${icon("search")}</button><nav class="main-nav" aria-label="Main navigation"><a href="${url("")}">Browse</a>${u?.role === "student" ? `<a href="${url("my-listings")}">My shelf</a><a href="${url("inbox")}">Inbox</a>` : ""}${u?.role === "admin" ? `<a href="${url("admin")}">Desk</a><a href="${url("admin/listings")}">Catalog</a><a href="${url("admin/accounts")}">Accounts</a><a href="${url("admin/inquiries")}">Inquiries</a>` : ""}</nav><div class="head-actions">${u ? `<a class="account-link" href="${url(u.role === "admin" ? "admin" : "profile")}">${esc(u.name.split(" ")[0])} <span>⌄</span></a><button class="text-button" id="signout">Sign out</button>` : `<a class="text-button" href="${url("signin")}">Sign in</a><a class="button small" href="${url("register")}">Join the shelf ${icon("arrow")}</a>`}</div></header>`;
+  return `<header class="site-head"><a class="brand" href="${url("")}" aria-label="Campus Book Exchange home"><span class="bookmark">${icon("bookmark")}</span><span>Campus Book<br><b>Exchange</b></span></a><form class="header-search" id="quick-search"><label class="sr-only" for="q-head">Search books</label>${icon("search")}<input id="q-head" name="q" placeholder="Find a book, author, ISBN…"><button aria-label="Search">↵</button></form><button class="mobile-search" id="mobile-search" aria-label="Open search" aria-expanded="false">${icon("search")}</button><button class="mobile-menu" id="mobile-menu" aria-label="Open navigation" aria-expanded="false">☰</button><nav class="main-nav" id="main-nav" aria-label="Main navigation"><a href="${url("")}">Browse</a>${!u ? `<a href="${url("signin")}">Sign in</a>` : ""}${u?.role === "student" ? `<a href="${url("my-listings")}">My shelf</a><a href="${url("inbox")}">Inbox</a><a href="${url("profile")}">Profile</a><button class="mobile-nav-signout" id="mobile-signout">Sign out</button>` : ""}${u?.role === "admin" ? `<a href="${url("admin")}">Desk</a><a href="${url("admin/listings")}">Catalog</a><a href="${url("admin/accounts")}">Accounts</a><a href="${url("admin/inquiries")}">Inquiries</a><button class="mobile-nav-signout" id="mobile-signout">Sign out</button>` : ""}</nav><div class="head-actions">${u ? `<a class="account-link" href="${url(u.role === "admin" ? "admin" : "profile")}">${esc(u.name.split(" ")[0])} <span>⌄</span></a><button class="text-button" id="signout">Sign out</button>` : `<a class="text-button" href="${url("signin")}">Sign in</a><a class="button small" href="${url("register")}">Join the shelf ${icon("arrow")}</a>`}</div></header>`;
 }
 function footer() {
   return `<footer class="site-foot"><div class="foot-brand">${icon("bookmark")}<span>Books find<br>new readers.</span></div><p>A student-powered shelf for good books and fresh starts.</p><label class="demo-switch" for="demo-role">Preview as <select id="demo-role" aria-label="Preview the site as a demo role"><option value="visitor">Visitor</option><option value="student">Student</option><option value="admin">Admin</option></select></label><small>Campus Book Exchange · A student-powered shelf</small></footer>`;
@@ -95,13 +95,25 @@ function shell(content, admin = false) {
     setUser(null);
     go("");
   });
+  document.querySelector("#mobile-signout")?.addEventListener("click", () => {
+    setUser(null);
+    go("");
+  });
   document.querySelector("#quick-search")?.addEventListener("submit", (e) => {
     e.preventDefault();
     go(`?q=${encodeURIComponent(e.currentTarget.q.value)}`);
   });
   document.querySelector("#mobile-search")?.addEventListener("click", () => {
-    document.querySelector(".header-search")?.classList.toggle("search-open");
+    const search = document.querySelector(".header-search");
+    const open = search?.classList.toggle("search-open") || false;
+    document.querySelector("#mobile-search")?.setAttribute("aria-expanded", String(open));
     document.querySelector("#q-head")?.focus();
+  });
+  document.querySelector("#mobile-menu")?.addEventListener("click", (event) => {
+    const nav = document.querySelector("#main-nav");
+    const open = nav?.classList.toggle("mobile-open") || false;
+    event.currentTarget.setAttribute("aria-expanded", String(open));
+    event.currentTarget.setAttribute("aria-label", open ? "Close navigation" : "Open navigation");
   });
 }
 // Reusable book artwork and catalog-card pieces.
@@ -119,7 +131,7 @@ function placeholder(book) {
   return `<div class="cover-art" style="--cover:${esc(book.color || "#1F5A4A")}" role="img" aria-label="Cover art placeholder for ${title}"><span class="cover-top">CAMPUS<br>EDITION</span><strong>${initials}</strong><span class="cover-name">${title}</span><span class="cover-bottom">BOOK EXCHANGE · ${esc(book.course || "NEW CHAPTER")}</span></div>`;
 }
 function stamp(status) {
-  return `<span class="stamp stamp-${status.toLowerCase()}">${esc(status)}</span>`;
+  return `<span class="stamp stamp-${status.toLowerCase().replace(/\s+/g, "-")}">${esc(status)}</span>`;
 }
 function card(b, i) {
   return `<article class="book-card" style="--tilt:${((i % 5) - 2) * 0.42}deg"><a href="${url(`book/${encodeURIComponent(b.id)}`)}" class="card-link" aria-label="View ${esc(b.title)}">${placeholder(b)}<span class="punch" aria-hidden="true"></span><div class="card-body"><div class="card-course">${esc(b.course)} <span>·</span> ${esc(b.isbn || "ISBN not listed")}</div><h3>${esc(b.title)}</h3><p class="byline">${esc(b.author || "Author unknown")}</p><div class="card-meta"><span class="condition-stamp">${esc(b.condition)}</span><span class="price-tag ${b.price === 0 ? "free-tag" : ""}">${b.price === 0 ? "✳ FREE" : esc(money(b.price))}</span></div><div class="card-date">Filed ${esc(date(b.createdAt))}</div></div></a></article>`;
@@ -316,8 +328,11 @@ function authPage(kind) {
 async function myListings() {
   const u = current();
   const rows = await api.getListings({ includeHidden: true, ownerId: u.id });
+  const statusControl = (book) => ["Pending approval", "Declined"].includes(book.status)
+    ? ""
+    : `<label class="status-control">Status <select data-status="${esc(book.id)}">${["Available", "Sold", "Hidden"].map((status) => `<option ${book.status === status ? "selected" : ""}>${status}</option>`).join("")}</select></label>`;
   shell(
-    `<section class="workspace-page">${pageTitle("YOUR STUDENT SHELF", "Your books, <em>your way.</em>", "Keep your listings current so the right book finds the right person.")}<div class="workspace-actions"><span class="result-count">${rows.length} ${rows.length === 1 ? "listing" : "listings"} filed</span><a class="button" href="${url("listing/new")}">＋ Add a book</a></div>${rows.length ? `<div class="my-listings">${rows.map((b) => `<article class="my-listing">${placeholder(b)}<div class="my-listing-copy"><div class="line-pair">${stamp(b.status)}<span class="card-course">${esc(b.course)}</span></div><h2>${esc(b.title)}</h2><p>${esc(money(b.price))} <span>·</span> ${esc(b.condition)}</p><div class="quick-actions"><a class="button outline small" href="${url(`listing/edit/${b.id}`)}">Edit listing</a><label class="status-control">Status <select data-status="${esc(b.id)}">${["Available", "Sold", "Hidden"].map((s) => `<option ${b.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></label><button class="text-button delete-listing" data-id="${esc(b.id)}">Delete</button></div></div></article>`).join("")}</div>` : `<div class="empty-state"><h3>Your shelf is waiting.</h3><p>List a book and help somebody find their next favorite.</p><a class="button" href="${url("listing/new")}">Add your first book</a></div>`}</section>`,
+    `<section class="workspace-page">${pageTitle("YOUR STUDENT SHELF", "Your books, <em>your way.</em>", "List a book for review, then manage its status once it’s approved.")}<div class="workspace-actions"><span class="result-count">${rows.length} ${rows.length === 1 ? "listing" : "listings"} filed</span><a class="button" href="${url("listing/new")}">＋ Add a book</a></div>${rows.length ? `<div class="my-listings">${rows.map((b) => `<article class="my-listing">${placeholder(b)}<div class="my-listing-copy"><div class="line-pair">${stamp(b.status)}<span class="card-course">${esc(b.course)}</span></div><h2>${esc(b.title)}</h2><p>${esc(money(b.price))} <span>·</span> ${esc(b.condition)}</p>${b.status === "Pending approval" ? `<p class="listing-review-note">Waiting for an administrator to review this book.</p>` : b.status === "Declined" ? `<p class="listing-review-note declined">This listing was declined. Edit it to make changes and send it for review again.</p>` : ""}<div class="quick-actions"><a class="button outline small" href="${url(`listing/edit/${b.id}`)}">Edit listing</a>${statusControl(b)}<button class="text-button delete-listing" data-id="${esc(b.id)}">Delete</button></div></div></article>`).join("")}</div>` : `<div class="empty-state"><h3>Your shelf is waiting.</h3><p>Add a book and submit it for administrator review.</p><a class="button" href="${url("listing/new")}">＋ Add and list a book</a></div>`}</section>`,
   );
   document.querySelectorAll("[data-status]").forEach(
     (el) =>
@@ -359,7 +374,7 @@ async function listingForm(id) {
     return denied();
   }
   shell(
-    `<section class="workspace-page listing-form-page"><a class="back-link" href="${url(u.role === "admin" ? "admin/listings" : "my-listings")}">← Back to ${u.role === "admin" ? "all listings" : "my shelf"}</a>${pageTitle(edit ? "UPDATE YOUR LISTING" : "ADD TO THE SHELF", edit ? "Make a few changes." : "Give a good book a new chapter.", "Tell fellow students what they need to know before they reach out.")}<form id="listing-form" class="listing-form" novalidate><div class="form-grid">${formField("Book title", "title", "text", { required: true, value: b.title, wide: true, placeholder: "The name on the cover" })}${formField("Author", "author", "text", { value: b.author, placeholder: "If known" })}${formField("Course code", "course", "text", { value: b.course, placeholder: "e.g. CS-301" })}${formField("ISBN", "isbn", "text", { value: b.isbn, placeholder: "Optional" })}<label class="field" for="condition">Condition<select id="condition" name="condition" required><option value="">Choose one</option>${["New", "Like new", "Good", "Fair", "Worn"].map((x) => `<option ${b.condition === x ? "selected" : ""}>${x}</option>`).join("")}</select><small class="field-error" data-error="condition"></small></label>${formField("Price (EGP)", "price", "number", { required: true, value: b.price, min: 0, placeholder: "0 means free" })}<label class="field wide" for="description">Description<textarea id="description" name="description" rows="4" required placeholder="Any notes that will help the next reader?">${esc(b.description)}</textarea><small class="field-error" data-error="description"></small></label><div class="field wide upload-field"><label for="cover">Book photo <span>(optional)</span></label><div class="upload-box">${placeholder(b)}<div><p>Choose a cover photo, or we’ll make a shelf-ready placeholder.</p><input id="cover" name="coverFile" type="file" accept="image/*"><small>In this demo, images are previewed in your browser only.</small></div></div></div><p id="form-error" class="form-error wide" aria-live="polite"></p></div><button type="submit" class="button form-submit">${edit ? "Save changes" : "Add to the shelf"} ${icon("arrow")}</button></form></section>`,
+    `<section class="workspace-page listing-form-page"><a class="back-link" href="${url(u.role === "admin" ? "admin/listings" : "my-listings")}">← Back to ${u.role === "admin" ? "all listings" : "my shelf"}</a>${pageTitle(edit ? "UPDATE YOUR LISTING" : "ADD TO THE SHELF", edit ? "Make a few changes." : "Give a good book a new chapter.", edit && u.role !== "admin" ? "After you save, this listing will return to the admin review queue." : edit ? "Update the listing details." : "Add the book details and submit it for administrator approval.")}<form id="listing-form" class="listing-form" novalidate><div class="form-grid">${formField("Book title", "title", "text", { required: true, value: b.title, wide: true, placeholder: "The name on the cover" })}${formField("Author", "author", "text", { value: b.author, placeholder: "If known" })}${formField("Course code", "course", "text", { value: b.course, placeholder: "e.g. CS-301" })}${formField("ISBN", "isbn", "text", { value: b.isbn, placeholder: "Optional" })}<label class="field" for="condition">Condition<select id="condition" name="condition" required><option value="">Choose one</option>${["New", "Like new", "Good", "Fair", "Worn"].map((x) => `<option ${b.condition === x ? "selected" : ""}>${x}</option>`).join("")}</select><small class="field-error" data-error="condition"></small></label>${formField("Price (EGP)", "price", "number", { required: true, value: b.price, min: 0, placeholder: "0 means free" })}<label class="field wide" for="description">Description<textarea id="description" name="description" rows="4" required placeholder="Any notes that will help the next reader?">${esc(b.description)}</textarea><small class="field-error" data-error="description"></small></label><div class="field wide upload-field"><label for="cover">Book photo <span>(optional)</span></label><div class="upload-box">${placeholder(b)}<div><p>Choose a cover photo, or we’ll make a shelf-ready placeholder.</p><input id="cover" name="coverFile" type="file" accept="image/*"><small>In this demo, images are previewed in your browser only.</small></div></div></div><p id="form-error" class="form-error wide" aria-live="polite"></p></div><button type="submit" class="button form-submit">${edit ? "Save changes" : "Submit for approval"} ${icon("arrow")}</button></form></section>`,
   );
   const file = document.querySelector("#cover");
   file.onchange = () => {
@@ -420,18 +435,17 @@ async function inbox() {
     all = await api.getListings({ includeHidden: true }),
     accounts = await api.getAccounts();
   const received = qs.filter((q) => q.recipientId === u.id);
+  const sent = qs.filter((q) => q.senderId === u.id);
+  const inquiryCards = (rows, direction) => rows.length
+    ? rows.map((q) => {
+        const other = accounts.find((x) => x.id === (direction === "received" ? q.senderId : q.recipientId));
+        const book = all.find((x) => x.id === q.listingId);
+        return `<article class="inquiry-card"><div class="inquiry-top"><div><small>ABOUT THIS BOOK</small><h2>${esc(book?.title || "Removed listing")}</h2></div><time>${esc(date(q.createdAt))}</time></div><p class="inquiry-message">“${esc(q.message)}”</p><div class="inquiry-sender"><span>${direction === "received" ? "FROM" : "SENT TO"}</span><b>${esc(other?.name || "Campus student")}</b>${direction === "received" ? `<a href="mailto:${esc(other?.email || "")}">${esc(other?.email || "")}</a><a href="tel:${esc(other?.phone || "")}">${esc(other?.phone || "")}</a>` : `<span class="inquiry-status">Inquiry sent</span>`}</div></article>`;
+      }).join("")
+    : `<div class="empty-state"><span class="empty-doodle">✉</span><h3>${direction === "received" ? "No notes yet." : "No inquiries sent yet."}</h3><p>${direction === "received" ? "When someone asks about your book, their message will land right here." : "When you contact a seller, your message will be saved here."}</p>${direction === "sent" ? `<a class="button" href="${url("")}">Browse the shelf</a>` : ""}</div>`;
+  const activeTab = new URLSearchParams(location.hash.split("?")[1] || "").get("view") === "sent" ? "sent" : "received";
   shell(
-    `<section class="workspace-page">${pageTitle("NOTES PASSED ALONG", "Your inbox.", "Messages from students interested in the books on your shelf.")}<div class="inbox-list">${
-      received.length
-        ? received
-            .map((q) => {
-              const sender = accounts.find((x) => x.id === q.senderId);
-              const book = all.find((x) => x.id === q.listingId);
-              return `<article class="inquiry-card"><div class="inquiry-top"><div><small>ABOUT THIS BOOK</small><h2>${esc(book?.title || "Removed listing")}</h2></div><time>${esc(date(q.createdAt))}</time></div><p class="inquiry-message">“${esc(q.message)}”</p><div class="inquiry-sender"><span>FROM</span><b>${esc(sender?.name || "Campus student")}</b><a href="mailto:${esc(sender?.email || "")}">${esc(sender?.email || "")}</a><a href="tel:${esc(sender?.phone || "")}">${esc(sender?.phone || "")}</a></div></article>`;
-            })
-            .join("")
-        : `<div class="empty-state"><span class="empty-doodle">✉</span><h3>No notes yet.</h3><p>When someone asks about your book, their message will land right here.</p></div>`
-    }</div></section>`,
+    `<section class="workspace-page">${pageTitle("NOTES PASSED ALONG", "Your inbox.", "Keep track of the messages you’ve received and the inquiries you’ve sent.")}<div class="inbox-tabs" role="tablist" aria-label="Inquiry folders"><a role="tab" aria-selected="${activeTab === "received"}" class="${activeTab === "received" ? "active" : ""}" href="${url("inbox")}">Received <span>${received.length}</span></a><a role="tab" aria-selected="${activeTab === "sent"}" class="${activeTab === "sent" ? "active" : ""}" href="${url("inbox?view=sent")}">Sent <span>${sent.length}</span></a></div><div class="inbox-list">${inquiryCards(activeTab === "received" ? received : sent)}</div></section>`,
   );
 }
 async function profile() {
@@ -445,7 +459,7 @@ async function profile() {
         .toUpperCase(),
     );
   shell(
-    `<section class="workspace-page profile-page">${pageTitle("YOUR DETAILS", "A little about <em>you.</em>", "Your profile helps the next reader know who they’re meeting.")}<form id="profile-form" class="profile-form"><div class="profile-photo-field"><div id="profile-avatar" class="profile-avatar">${u.avatar ? `<img src="${esc(u.avatar)}" alt="Your profile picture">` : initials}</div><label class="field" for="avatar">Profile picture<input id="avatar" name="avatarFile" type="file" accept="image/*"><small>Optional · JPG, PNG, or WebP · up to 2 MB</small></label></div>${formField("Full name", "name", "text", { required: true, value: u.name, autocomplete: "name" })}${formField("Email address", "email", "email", { required: true, value: u.email, autocomplete: "email" })}${formField("Phone number", "phone", "tel", { required: true, value: u.phone, autocomplete: "tel" })}<p class="form-error" id="form-error" aria-live="polite"></p><p class="form-success" id="form-success" aria-live="polite"></p><button type="submit" class="button">Save profile ${icon("arrow")}</button></form></section>`,
+    `<section class="workspace-page profile-page">${pageTitle("YOUR DETAILS", "A little about <em>you.</em>", "Update the details you share with other students.")}<form id="profile-form" class="profile-form"><div class="profile-photo-field"><div id="profile-avatar" class="profile-avatar">${u.avatar ? `<img src="${esc(u.avatar)}" alt="Your profile picture">` : initials}</div><label class="field" for="avatar">Profile picture<input id="avatar" name="avatarFile" type="file" accept="image/*"><small>Optional · JPG, PNG, or WebP · up to 2 MB</small></label></div>${formField("Full name", "name", "text", { required: true, value: u.name, autocomplete: "name" })}${formField("Phone number", "phone", "tel", { required: true, value: u.phone, autocomplete: "tel" })}<p class="form-error" id="form-error" aria-live="polite"></p><p class="form-success" id="form-success" aria-live="polite"></p><button type="submit" class="button">Save profile ${icon("arrow")}</button></form></section>`,
   );
   const file = document.querySelector("#avatar");
   file.onchange = () => {
@@ -482,8 +496,6 @@ async function profile() {
     err.textContent = "";
     success.textContent = "";
     if (d.name.trim().length < 2) err.textContent = "Enter your full name.";
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email))
-      err.textContent = "Enter a valid email address.";
     else if (!/^\+?[\d\s()-]{8,}$/.test(d.phone))
       err.textContent = "Enter a valid phone number.";
     if (err.textContent) return;
@@ -517,7 +529,7 @@ async function adminHome() {
     all = await api.getListings({ includeHidden: true }),
     accounts = await api.getAccounts();
   shell(
-    `<section class="admin-page">${pageTitle("THE LIBRARY DESK", "Behind the <em>desk.</em>", "A quick look at what’s happening across the campus shelf.")}<div class="admin-counts"><article><span>REGISTERED ACCOUNTS</span><b>${counts.accounts}</b><small>students + desk team</small></article><article><span>AVAILABLE BOOKS</span><b>${counts.available}</b><small>ready for a new reader</small></article><article><span>SOLD BOOKS</span><b>${counts.sold}</b><small>passed along already</small></article></div><div class="admin-shortcuts"><a href="${url("admin/listings")}"><span>01</span><b>Review listings</b><i>→</i></a><a href="${url("admin/accounts")}"><span>02</span><b>Manage accounts</b><i>→</i></a></div><div class="admin-latest"><div class="admin-section-head"><h2>Recently filed</h2><a href="${url("admin/listings")}">All listings ↗</a></div>${adminListingTable(all.slice(0, 5), accounts)}</div></section>`,
+    `<section class="admin-page">${pageTitle("THE LIBRARY DESK", "Behind the <em>desk.</em>", "Review new book submissions before they appear on the public shelf.")}<div class="admin-counts"><article><span>REGISTERED ACCOUNTS</span><b>${counts.accounts}</b><small>students + desk team</small></article><article><span>AVAILABLE BOOKS</span><b>${counts.available}</b><small>approved and listed</small></article><article><span>NEEDS REVIEW</span><b>${counts.pending}</b><small>waiting for a decision</small></article><article><span>SOLD BOOKS</span><b>${counts.sold}</b><small>passed along already</small></article></div><div class="admin-shortcuts"><a href="${url("admin/listings")}"><span>${String(counts.pending).padStart(2, "0")}</span><b>Review book submissions</b><i>→</i></a><a href="${url("admin/accounts")}"><span>02</span><b>Manage accounts</b><i>→</i></a></div><div class="admin-latest"><div class="admin-section-head"><h2>Recently filed</h2><a href="${url("admin/listings")}">All listings ↗</a></div>${adminListingTable(all.slice().sort((a, b) => Number(b.status === "Pending approval") - Number(a.status === "Pending approval")).slice(0, 5), accounts)}</div></section>`,
     true,
   );
   bindAdminListingActions(all, () => adminHome());
@@ -526,7 +538,12 @@ function adminListingTable(rows, accounts) {
   return `<div class="table-wrap"><table><thead><tr><th>BOOK / COURSE</th><th>OWNER</th><th>PRICE</th><th>STATUS</th><th>ACTIONS</th></tr></thead><tbody>${rows
     .map((b) => {
       const o = accounts.find((a) => a.id === b.ownerId);
-      return `<tr><td><b>${esc(b.title)}</b><small>${esc(b.course)}</small></td><td>${esc(o?.name || "Unknown")}</td><td>${esc(money(b.price))}</td><td>${stamp(b.status)}<select class="admin-status" data-id="${esc(b.id)}" aria-label="Set status for ${esc(b.title)}">${["Available", "Sold", "Hidden"].map((s) => `<option ${b.status === s ? "selected" : ""}>${s}</option>`).join("")}</select></td><td><a class="table-action" href="${url(`listing/edit/${b.id}`)}">Edit</a><button class="table-action danger admin-del" data-id="${esc(b.id)}">Delete</button></td></tr>`;
+      const reviewActions = b.status === "Pending approval"
+        ? `<button class="table-action approve-listing" data-id="${esc(b.id)}">Approve</button><button class="table-action danger decline-listing" data-id="${esc(b.id)}">Decline</button>`
+        : b.status === "Declined"
+          ? `<button class="table-action approve-listing" data-id="${esc(b.id)}">Approve</button>`
+          : `<select class="admin-status" data-id="${esc(b.id)}" aria-label="Set status for ${esc(b.title)}">${["Available", "Sold", "Hidden"].map((s) => `<option ${b.status === s ? "selected" : ""}>${s}</option>`).join("")}</select>`;
+      return `<tr class="${b.status === "Pending approval" ? "pending-row" : ""}"><td><b>${esc(b.title)}</b><small>${esc(b.course)}</small></td><td>${esc(o?.name || "Unknown")}</td><td>${esc(money(b.price))}</td><td>${stamp(b.status)}</td><td>${reviewActions}<a class="table-action" href="${url(`listing/edit/${b.id}`)}">Edit</a><button class="table-action danger admin-del" data-id="${esc(b.id)}">Delete</button></td></tr>`;
     })
     .join("")}</tbody></table></div>`;
 }
@@ -550,12 +567,21 @@ function bindAdminListingActions(rows, refresh) {
           },
         )),
   );
+  document.querySelectorAll(".approve-listing,.decline-listing").forEach((el) => {
+    el.onclick = async () => {
+      const action = el.classList.contains("approve-listing") ? "approve" : "decline";
+      await api.adminListing(el.dataset.id, action);
+      refresh();
+    };
+  });
 }
 async function adminListings() {
-  const rows = await api.getListings({ includeHidden: true }),
+  const rows = (await api.getListings({ includeHidden: true })).sort(
+      (a, b) => Number(b.status === "Pending approval") - Number(a.status === "Pending approval"),
+    ),
     accounts = await api.getAccounts();
   shell(
-    `<section class="admin-page">${pageTitle("THE LIBRARY DESK · CATALOG", "Every book, <em>one shelf.</em>", "Review status and keep the public catalog tidy.")}<div class="admin-table-card">${adminListingTable(rows, accounts)}</div></section>`,
+    `<section class="admin-page">${pageTitle("THE LIBRARY DESK · REVIEW QUEUE", "Approve the next <em>chapter.</em>", "New and updated student listings appear here until you approve or decline them.")}<div class="review-queue-count">${rows.filter((b) => b.status === "Pending approval").length} waiting for review</div><div class="admin-table-card">${adminListingTable(rows, accounts)}</div></section>`,
     true,
   );
   bindAdminListingActions(rows, () => adminListings());
@@ -649,9 +675,10 @@ async function adminInquiries() {
 
 // Route the current hash and enforce the demo role permissions.
 async function dispatch() {
-  const route = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
+  const hashRoute = decodeURIComponent(location.hash.replace(/^#\/?/, ""));
+  const route = hashRoute.split("?")[0];
   const user = current();
-  if (!route || route.startsWith("?")) {
+  if (!route || hashRoute.startsWith("?")) {
     return catalog();
   }
 
